@@ -1,0 +1,36 @@
+{
+  "name": "input-auto-save",
+  "private": true,
+  "scripts": {
+    "start": "meteor run",
+    "test": "meteor test --once --driver-package meteortesting:mocha",
+    "test-app": "TEST_WATCH=1 meteor test --full-app --driver-package meteortesting:mocha",
+    "visualize": "meteor --production --extra-packages bundle-visualizer"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.20.6",
+    "autoprefixer": "^10.4.16",
+    "meteor-node-stubs": "^1.2.5",
+    "postcss": "^8.4.31",
+    "postcss-load-config": "^4.0.1",
+    "svelte": "^3.54.0",
+    "tailwindcss": "^3.3.5"
+  },
+  "devDependencies": {
+    "svelte-preprocess": "^5.0.0"
+  },
+  "meteor": {
+    "mainModule": {
+      "client": "client/main.js",
+      "server": "server/main.js"
+    },
+    "nodeModules": {
+      "recompile": {
+        "svelte": [
+          "legacy"
+        ]
+      }
+    },
+    "testModule": "tests/main.js"
+  }
+}
