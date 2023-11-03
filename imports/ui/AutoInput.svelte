@@ -19,11 +19,6 @@
     let isInitialized = false;
     let activeIndex = 0;
     let filteredItems = [];
-    $m: {
-        filteredItems = alternativeItems.filter(item => item.toLowerCase().includes(filter));
-        if (activeIndex >= filteredItems.length) activeIndex = filteredItems.length - 1
-    }
-
     let x = 0,
         y = 0;
 
@@ -31,20 +26,14 @@
     const saveChange = async () => {
         changedCounter = 0;
         let savedData = InputDataCollection.findOne({ unique_id });
-        if (savedData)
-            await InputDataCollection.update(savedData._id, {
-                unique_id,
-                value,
-                selectionStart,
-                selectionEnd,
-            });
-        else
-            await InputDataCollection.insert({
-                unique_id,
-                value,
-                selectionStart,
-                selectionEnd,
-            });
+        const data = {
+            unique_id,
+            value,
+            selectionStart,
+            selectionEnd,
+        };
+        if (savedData) await InputDataCollection.update(savedData._id, data);
+        else await InputDataCollection.insert(data);
     };
 
     const getCursorXY = (input) => {
@@ -138,7 +127,7 @@
                 }
                 if (alternativeVisible) {
                     activeIndex = 0;
-                    filter = newValue.substring(index + 1, newSelectionStart)
+                    filter = newValue.substring(index + 1, newSelectionStart);
                     setTimeout(moveAlternativeContainer, 100);
                 }
             }
@@ -183,21 +172,37 @@
             if (alternativeVisible) {
                 e.preventDefault();
                 alternativeVisible = false;
-                let { selectionStart } = input;
-                let index = selectionStart - 1;
-                for (; index >= 0; index--) {
-                    if (value[index] == "/") break;
-                    if (value[index] == "\n") index = 0;
-                }
-                if (index >= 0) {
-                    input.value = value.substring(0, index) + filteredItems[activeIndex] + value.substring(selectionStart, value.length);
-                    input.setSelectionRange(index + filteredItems[activeIndex].length, index + filteredItems[activeIndex].length)
+                if (filteredItems[activeIndex]) {
+                    let { selectionStart } = input;
+                    let index = selectionStart - 1;
+                    for (; index >= 0; index--) {
+                        if (value[index] == "/") break;
+                        if (value[index] == "\n") index = 0;
+                    }
+                    if (index >= 0) {
+                        input.value =
+                            value.substring(0, index) +
+                            filteredItems[activeIndex] +
+                            value.substring(selectionStart, value.length);
+                        input.setSelectionRange(
+                            index + filteredItems[activeIndex].length,
+                            index + filteredItems[activeIndex].length
+                        );
+                    }
                 }
             }
         } else if (e.key == "Escape") {
             alternativeVisible = false;
         }
     };
+
+    $m: {
+        filteredItems = alternativeItems.filter((item) =>
+            item.toLowerCase().includes(filter)
+        );
+        if (activeIndex >= filteredItems.length)
+            activeIndex = filteredItems.length - 1;
+    }
 
     // Initialization logic using a reactive statement
     $m: {
@@ -228,36 +233,38 @@
     on:keyup={onChange}
     on:mouseup={onChange}
 />
-<div
-    class={`w-screen h-wcreen fixed top-0 left-0 bottom-0 right-0 ${
-        alternativeVisible ? "block" : "hidden"
-    }`}
-    on:mousedown={(e) => {
-        e.preventDefault();
-        alternativeVisible = false;
-    }}
-/>
-<ul
-    class="shadow-lg bg-white border border-gray-300 rounded-md p-2 max-h-40 h-fit overflow-y-auto scroll-mr-3 w-96"
-    bind:this={alternativeContainer}
-    style={`position:fixed;left:${x}px; top:${y}px; display:${
-        alternativeVisible ? "block" : "none"
-    }`}
-    on:resize={onAternativeContainerResize}
-    on:mousedown={(e) => {
-        e.preventDefault();
-        alternativeVisible = false;
-    }}
->
-    {#each filteredItems as item, index}
-        <li
-            class={`flex items-center gap-x-2 px-2 py-1 relative cursor-pointer hover:bg-gray-50 hover:text-gray-900 rounded-md my-1 ${
-                index == activeIndex ? "bg-blue-100" : ""
-            }`}
-        >
-            <div class="truncate">
-                {item}
-            </div>
-        </li>
-    {/each}
-</ul>
+{#if alternativeVisible}
+    <div
+        class={`w-screen h-wcreen fixed top-0 left-0 bottom-0 right-0 ${
+            alternativeVisible ? "block" : "hidden"
+        }`}
+        on:mousedown={(e) => {
+            e.preventDefault();
+            alternativeVisible = false;
+        }}
+    />
+    <ul
+        class="shadow-lg bg-white border border-gray-300 rounded-md p-2 max-h-40 h-fit overflow-y-auto scroll-mr-3 w-96"
+        bind:this={alternativeContainer}
+        style={`position:fixed;left:${x}px; top:${y}px; display:${
+            alternativeVisible ? "block" : "none"
+        }`}
+        on:resize={onAternativeContainerResize}
+        on:mousedown={(e) => {
+            e.preventDefault();
+            alternativeVisible = false;
+        }}
+    >
+        {#each filteredItems as item, index}
+            <li
+                class={`flex items-center gap-x-2 px-2 py-1 relative cursor-pointer hover:bg-gray-50 hover:text-gray-900 rounded-md my-1 ${
+                    index == activeIndex ? "bg-blue-100" : ""
+                }`}
+            >
+                <div class="truncate">
+                    {item}
+                </div>
+            </li>
+        {/each}
+    </ul>
+{/if}
