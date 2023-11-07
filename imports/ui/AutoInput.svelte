@@ -11,7 +11,6 @@
     let alternativeContainer = null;
     let alternativeVisible = false;
     let value = "";
-    let filter = "";
     let selectionStart = 0;
     let selectionEnd = 0;
     let changedCounter = 0;
@@ -21,6 +20,9 @@
     let filteredItems = [];
     let x = 0,
         y = 0;
+    let replaceStartIndex = 0;
+    let originReplaceValue = "";
+    let alternativeReplacingStatus = -1; // -1: not showing 0: showing(just changed) 1: showing(arrow)
 
     // Function to save changes to the database
     const saveChange = async () => {
@@ -107,6 +109,16 @@
 
     // Function to handle input changes
     const onChange = (e) => {
+        if (alternativeVisible) {
+            if (alternativeReplacingStatus == 1) {
+                alternativeReplacingStatus = 0;
+                return;
+            }
+            if (alternativeReplacingStatus == 0) {
+                alternativeVisible = false;
+                alternativeReplacingStatus = -1;
+            }
+        }
         const {
             selectionStart: newSelectionStart,
             selectionEnd: newSelectionEnd,
@@ -117,7 +129,10 @@
             if (newSelectionStart == newSelectionEnd) {
                 let index = newSelectionStart - 1;
                 if (newValue[newSelectionStart - 1] == "/") {
+                    replaceStartIndex = newSelectionStart - 1;
+                    originReplaceValue = "";
                     alternativeVisible = true;
+                    alternativeReplacingStatus = -1;
                 } else if (alternativeVisible) {
                     for (; index >= 0; index--) {
                         if (newValue[index] == "/") break;
@@ -127,7 +142,10 @@
                 }
                 if (alternativeVisible) {
                     activeIndex = 0;
-                    filter = newValue.substring(index + 1, newSelectionStart);
+                    originReplaceValue = newValue.substring(
+                        index + 1,
+                        newSelectionStart
+                    );
                     setTimeout(moveAlternativeContainer, 100);
                 }
             }
@@ -148,6 +166,23 @@
         }
     };
 
+    const replaceValue = (value) => {
+        let { selectionStart } = input;
+        input.value =
+            input.value.substring(0, replaceStartIndex) +
+            value +
+            input.value.substring(selectionStart, input.value.length);
+        input.setSelectionRange(
+            replaceStartIndex + value.length,
+            replaceStartIndex + value.length
+        );
+    };
+
+    const replaceAlternative = () => {
+        if (filteredItems[activeIndex])
+            replaceValue(filteredItems[activeIndex]);
+    };
+
     const onKeyDown = (e) => {
         if (e.key == "ArrowUp" || e.key == "ArrowDown") {
             if (alternativeVisible) {
@@ -166,39 +201,25 @@
                     } else if (itemBoundaryRect.top < listBoundaryRect.top) {
                         activeItem.scrollIntoView(true);
                     }
+                    alternativeReplacingStatus = 1;
+                    replaceAlternative();
                 }
             }
         } else if (e.key == "Enter") {
             if (alternativeVisible) {
                 e.preventDefault();
                 alternativeVisible = false;
-                if (filteredItems[activeIndex]) {
-                    let { selectionStart } = input;
-                    let index = selectionStart - 1;
-                    for (; index >= 0; index--) {
-                        if (value[index] == "/") break;
-                        if (value[index] == "\n") index = 0;
-                    }
-                    if (index >= 0) {
-                        input.value =
-                            value.substring(0, index) +
-                            filteredItems[activeIndex] +
-                            value.substring(selectionStart, value.length);
-                        input.setSelectionRange(
-                            index + filteredItems[activeIndex].length,
-                            index + filteredItems[activeIndex].length
-                        );
-                    }
-                }
+                if (alternativeReplacingStatus == -1) replaceAlternative();
             }
         } else if (e.key == "Escape") {
             alternativeVisible = false;
+            replaceValue("/" + originReplaceValue);
         }
     };
 
     $m: {
         filteredItems = alternativeItems.filter((item) =>
-            item.toLowerCase().includes(filter)
+            item.toLowerCase().includes(originReplaceValue)
         );
         if (activeIndex >= filteredItems.length)
             activeIndex = filteredItems.length - 1;
@@ -234,15 +255,6 @@
     on:mouseup={onChange}
 />
 {#if alternativeVisible}
-    <div
-        class={`w-screen h-wcreen fixed top-0 left-0 bottom-0 right-0 ${
-            alternativeVisible ? "block" : "hidden"
-        }`}
-        on:mousedown={(e) => {
-            e.preventDefault();
-            alternativeVisible = false;
-        }}
-    />
     <ul
         class="shadow-lg bg-white border border-gray-300 rounded-md p-2 max-h-40 h-fit overflow-y-auto scroll-mr-3 w-96"
         bind:this={alternativeContainer}
@@ -250,21 +262,30 @@
             alternativeVisible ? "block" : "none"
         }`}
         on:resize={onAternativeContainerResize}
-        on:mousedown={(e) => {
-            e.preventDefault();
-            alternativeVisible = false;
-        }}
     >
         {#each filteredItems as item, index}
             <li
-                class={`flex items-center gap-x-2 px-2 py-1 relative cursor-pointer hover:bg-gray-50 hover:text-gray-900 rounded-md my-1 ${
+                class={`flex z-10 items-center gap-x-2 px-2 py-1 relative cursor-pointer hover:bg-gray-50 hover:text-gray-900 rounded-md my-1 ${
                     index == activeIndex ? "bg-blue-100" : ""
                 }`}
+                on:mousedown={(e) => {
+                    e.preventDefault();
+                    activeIndex = index;
+                    alternativeVisible = false;
+                    replaceAlternative();
+                }}
             >
                 <div class="truncate">
                     {item}
                 </div>
             </li>
         {/each}
+        <div
+            class="bg-blue fixed inset-0 z-0"
+            on:mousedown={(e) => {
+                e.preventDefault();
+                alternativeVisible = false;
+            }}
+        />
     </ul>
 {/if}
